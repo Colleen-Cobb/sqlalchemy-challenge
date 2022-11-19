@@ -115,16 +115,69 @@ def tobs():
         filter(Measurement.date >= '2016-08-23').\
         filter(Measurement.date <= '2017-08-23').all()
 
-
-
-
-
     session.close()
 
     tobs_list=list(np.ravel(tobs))
 
     return jsonify(tobs_list)
 
+# Define what to do when a user hits the /api/v1.0/<start>
+@app.route("/api/v1.0/<start>")
+def start_date(start):
+
+    #Create our Session (link) from Python to the DB
+    session=Session(engine) 
+
+    sel_t = [func.min(Measurement.tobs),
+         func.max(Measurement.tobs),
+         func.avg(Measurement.tobs)]
+
+    start_data = session.query(*sel_t).\
+                    filter(Measurement.date >= start).all()
+
+    session.close()
+
+    # Create a dictionary from the row data and append to a list of start dates
+    start_queries = []
+    for min, avg, max in start_data:
+        start_dict = {}
+        start_dict["min"] = min
+        start_dict["avg"] = avg
+        start_dict["max"] = max
+        start_queries.append(start_dict)
+
+    return jsonify(start_data)
+
+
+# Define what to do when a user hits the /api/v1.0/<start>/<end>
+
+@app.route("/api/v1.0/<start>/<end>")
+def start_end(start, end):
+
+    #Create our Session (link) from Python to the DB
+    session=Session(engine)
+
+    sel_t = [func.min(Measurement.tobs),
+         func.max(Measurement.tobs),
+         func.avg(Measurement.tobs)]
+
+    start_end_data = session.query(*sel_t).\
+                    filter(Measurement.date >= start).\
+                    filter(Measurement.date <= end).all()
+
+    session.close()
+
+
+    # Create a dictionary from the row data and append to a list of start dates
+    start__end_queries = []
+    for min, avg, max in start_end_data:
+        start_end_dict = {}
+        start_end_dict["min"] = min
+        start_end_dict["avg"] = avg
+        start_end_dict["max"] = max
+        start_end_queries.append(start_end_dict)
+
+    return jsonify(start_end_data)
 
 
 if __name__ == "__main__" : 
