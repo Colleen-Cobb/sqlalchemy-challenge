@@ -6,6 +6,8 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 
+import datetime as dt
+
 
 # 1. Import Flask
 from flask import Flask, jsonify
@@ -56,15 +58,28 @@ def prcp():
 
     """Return a list of precipitation data inlcuding date and prcp value for the last 12 months"""
 
-    prcp_data = session.query(Measurement.date, Measurement.prcp).\
-                    filter(Measurement.date >= '2016-08-23').\
-                    filter(Measurement.date <= '2017-08-23').\
+    # Calculate the date one year from the last date in data set.
+    recent_date=session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    recent_day= (dt.datetime.strptime(recent_date, "%Y-%m-%d")).date()
+    year_ago= recent_day - dt.timedelta(days=365)
+
+    prcp_results = session.query(Measurement.date, Measurement.prcp).\
+                    filter(Measurement.date >= year_ago).\
+                    filter(Measurement.date <= recent_day).\
                     order_by(Measurement.date).all()
 
     
     session.close()
 
-    prcp_values= list(np.ravel(prcp_data))
+    
+    prcp_values = []
+    for date, prcp in prcp_results:
+        if prcp != None:
+            prcp_dict= {}
+            prcp_dict[date]=prcp
+            prcp_values.append(prcp_dict)
+
+    # prcp_values= list(np.ravel(prcp_data))
 
     return jsonify(prcp_values)
 
@@ -76,11 +91,23 @@ def station():
 
     """Return a list of stations from the dataset"""
 
-    stations= session.query(Station.name).all()
+    stations= session.query(Station.id, Station.station, Station.name, Station.latitude, Station.longitude, Station.elevation).all()
 
     session.close()
 
-    station_list=list(np.ravel(stations))
+    station_list =[]
+    for id, station, name, latitude, longitude, elevation in stations:
+        station_dict={}
+        station_dict["id"]=id
+        station_dict["station"]= station
+        station_dict["name"]= name
+        station_dict["latitude"]= latitude
+        station_dict["longitude"]= longitude
+        station_dict["elevation"]= elevation
+        station_list.append(station_dict)
+
+
+   
 
     return jsonify(station_list)
 
@@ -117,12 +144,17 @@ def tobs():
 
     session.close()
 
-    tobs_list=list(np.ravel(tobs))
+    tobs_list = []
+    for date, temp in tobs:
+        if temp != None:
+            tobs_dict= {}
+            tobs_dict[date]=temp
+            tobs_list.append(tobs_dict)
 
     return jsonify(tobs_list)
 
 # Define what to do when a user hits the /api/v1.0/<start>
-@app.route("/api/v1.0/<start>")
+@app.route("/api/v1.0/temp/<start>")
 def start_date(start):
 
     #Create our Session (link) from Python to the DB
@@ -151,7 +183,7 @@ def start_date(start):
 
 # Define what to do when a user hits the /api/v1.0/<start>/<end>
 
-@app.route("/api/v1.0/<start>/<end>")
+@app.route("/api/v1.0/temp/<start>/<end>")
 def start_end(start, end):
 
     #Create our Session (link) from Python to the DB
